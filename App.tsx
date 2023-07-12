@@ -86,8 +86,7 @@ export default function App() {
 
   const traceRouteOnReady = (args: any) => {
     if (args) {
-      // args.distance
-      // args.duration
+
       setDistance(args.distance);
       setDuration(args.duration);
     }
@@ -127,7 +126,7 @@ export default function App() {
             origin={origin}
             destination={destination}
             apikey={GOOGLE_API_KEY}
-            strokeColor="#6644ff"
+            strokeColor="#0073cf"
             strokeWidth={4}
             onReady={traceRouteOnReady}
           />
@@ -189,12 +188,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   button: {
-    backgroundColor: "#bbb",
+    backgroundColor: "#262758",
     paddingVertical: 12,
     marginTop: 16,
     borderRadius: 4,
   },
   buttonText: {
     textAlign: "center",
+    color:"white",
   },
 });
