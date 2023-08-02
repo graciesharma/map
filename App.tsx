@@ -1,36 +1,32 @@
 import MapView, { LatLng, Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import {
-  StyleSheet,
-  View,
-  Dimensions,
-  Text,
-  TouchableOpacity,
-} from "react-native";
+import { View, Dimensions, Text, TouchableOpacity } from "react-native";
 import {
   GooglePlaceDetail,
   GooglePlacesAutocomplete,
 } from "react-native-google-places-autocomplete";
 import { GOOGLE_API_KEY } from "./environment";
-import Constants from "expo-constants";
 import React, { useEffect, useRef, useState } from "react";
 import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
 import {
-  Button,
+  Box,
+  CloseIcon,
+  Divider,
   GluestackUIProvider,
-  Icon,
+  MenuIcon,
   Modal,
   SearchIcon,
 } from "./components";
 import { config } from "./gluestack-ui.config";
-import PopoverButton from "./ui/buttonPopover";
-import { PlayIcon } from "./components";
+import { styles } from "./styles";
+import MenuDetail from "./components/Menu/menu";
 
 const { width, height } = Dimensions.get("window");
 
 const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.02;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
+
 const INITIAL_POSITION = {
   latitude: 27.67054,
   longitude: 85.30992,
@@ -68,8 +64,24 @@ function InputAutocomplete({
   );
 }
 
+const Flex = () => {
+  const numberOfItems = 8;
+
+  return (
+    <View style={styles.modalContainer}>
+      {[...Array(numberOfItems)].map((_, index) => (
+        <MenuDetail key={index} />
+      ))}
+    </View>
+  );
+};
+
 export default function App() {
   const [showModal, setShowModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedMarkerDetails, setSelectedMarkerDetails] = useState<LatLng>(
+    {} as LatLng
+  );
 
   const [origin, setOrigin] = useState<LatLng | null>();
   const [destination, setDestination] = useState<LatLng | null>();
@@ -80,6 +92,33 @@ export default function App() {
 
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  //my location
+  const CURRENT_LATITUDE = 27.65167;
+  const CURRENT_LONGITUDE = 85.31348;
+
+  // range around my current location
+  const MAX_LATITUDE = CURRENT_LATITUDE + 0.01;
+  const MIN_LATITUDE = CURRENT_LATITUDE - 0.01;
+  const MAX_LONGITUDE = CURRENT_LONGITUDE + 0.01;
+  const MIN_LONGITUDE = CURRENT_LONGITUDE - 0.01;
+
+  const generateRandomCoordinates = () => {
+    const latitude =
+      Math.random() * (MAX_LATITUDE - MIN_LATITUDE) + MIN_LATITUDE;
+    const longitude =
+      Math.random() * (MAX_LONGITUDE - MIN_LONGITUDE) + MIN_LONGITUDE;
+    return { latitude, longitude };
+  };
+
+  const [markers, setMarkers] = useState([]);
+
+  useEffect(() => {
+    const randomMarkers = Array.from({ length: 5 }, () =>
+      generateRandomCoordinates()
+    );
+    setMarkers(randomMarkers);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -130,7 +169,9 @@ export default function App() {
   const traceRoute = () => {
     if (origin && destination) {
       setShowDirections(true);
-      mapRef.current?.fitToCoordinates([origin, destination], { edgePadding });
+      mapRef.current?.fitToCoordinates([origin, destination], {
+        edgePadding,
+      });
     }
   };
 
@@ -157,19 +198,19 @@ export default function App() {
 
   const closeModal = () => {
     setShowModal(false);
+    setShowDetailsModal(false);
   };
 
-  // Array of items
-  const items = [
-    { name: "Item 1" },
-    { name: "Item 2" },
-    { name: "Item 3" },
-    { name: "Item 4" },
-    { name: "Item 5" },
-    { name: "Item 6" },
-    { name: "Item 7" },
-    { name: "Item 8" },
-  ];
+  const closeModalDetails = () => {
+    setShowDetailsModal(false);
+  };
+
+  const [showAutoCompleteButton, setShowAutoCompleteButton] = useState(false);
+  const toggleBox = () => {
+    setShowAutoCompleteButton(
+      (prevShowAutoCompleteButton) => !prevShowAutoCompleteButton
+    );
+  };
 
   return (
     <GluestackUIProvider config={config.theme}>
@@ -194,200 +235,93 @@ export default function App() {
               onReady={traceRouteOnReady}
             />
           )}
+          {/* Render random markers  */}
+          {markers.map((marker, index) => (
+            <Marker
+              key={index}
+              coordinate={marker}
+              title={`Marker ${index + 1}`}
+            />
+          ))}
         </MapView>
-        <View style={styles.searchContainer}>
-        <InputAutocomplete
-          label="Origin"
-          onPlaceSelected={(details) => {
-            onPlaceSelected(details, "origin");
-          }}
-        />
-        <InputAutocomplete
-          label="Destination"
-          onPlaceSelected={(details) => {
-            onPlaceSelected(details, "destination");
-          }}
-        />
-        <TouchableOpacity style={styles.button} onPress={traceRoute}>
-          <Text style={styles.buttonText}>Trace route</Text>
+
+        <TouchableOpacity style={styles.iconButton} onPress={toggleBox}>
+          {showAutoCompleteButton ? (
+            <CloseIcon size="md" color="white" />
+          ) : (
+            <SearchIcon size="md" color="white" />
+          )}
         </TouchableOpacity>
-        {distance && duration ? (
-          <View>
-            <Text>Distance: {distance.toFixed(2)}</Text>
-            <Text>Duration: {Math.ceil(duration)} min</Text>
+        {showAutoCompleteButton ? (
+          <View style={styles.searchContainer}>
+            <>
+              <InputAutocomplete
+                label="Origin"
+                onPlaceSelected={(details) => {
+                  onPlaceSelected(details, "origin");
+                }}
+              />
+              <InputAutocomplete
+                label="Destination"
+                onPlaceSelected={(details) => {
+                  onPlaceSelected(details, "destination");
+                }}
+              />
+              <TouchableOpacity style={styles.button} onPress={traceRoute}>
+                <Text style={styles.buttonText}>Trace route</Text>
+              </TouchableOpacity>
+              {distance && duration ? (
+                <View>
+                  <Text>Distance: {distance.toFixed(2)}</Text>
+                  <Text>Duration: {Math.ceil(duration)} min</Text>
+                </View>
+              ) : null}
+            </>
           </View>
         ) : null}
-      </View>
 
-        {/* Add the full-page modal */}
         <Modal isOpen={showModal} onClose={closeModal}>
-          {/* Contents of the full-page modal */}
           <TouchableOpacity
             style={styles.fullPageModalContent}
-            activeOpacity={1} // Prevent unwanted clicks behind the modal
-            onPress={closeModal} // Close modal on click
+            activeOpacity={1}
+            onPress={closeModal}
           >
             <View style={styles.modalContent}>
-              {/* Close button */}
               <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
-                <Text style={styles.closeButtonText}>x</Text>
+                <CloseIcon size="md" color="black" />
               </TouchableOpacity>
-
-              {/* List of items */}
-              {items.map((item, index) => (
-                <View key={index}>
-                  {/* <Divider style={styles.divider} /> Divider below each item */}
-                  <View style={styles.itemContainer}>
-                    {/* "View Details" button */}
-                    <TouchableOpacity style={styles.viewDetailsButton}>
-                      <Text style={styles.viewDetailsButtonText}>
-                        View Details
-                      </Text>
-                    </TouchableOpacity>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    {/* PlayIcon */}
-                    <PlayIcon size="md" />
-                  </View>
-                </View>
-              ))}
-              {/* <Divider style={styles.divider} /> Divider after the last item */}
+              <Flex />
             </View>
           </TouchableOpacity>
         </Modal>
 
-        {/* Button to open the full-page modal */}
+        {/* Second Modal */}
+
+        <Modal isOpen={showDetailsModal} onClose={closeModalDetails}>
+          <TouchableOpacity
+            style={styles.fullPageModalContent}
+            activeOpacity={1}
+            onPress={closeModalDetails}
+          >
+            <View style={styles.detailsModalContent}>
+              <Box bg="$rose100" p="$5">
+                <Text>This is the Box</Text>
+              </Box>
+              <Divider />
+              <Box bg="$primary500" p="$5">
+                <Text>This is the Box</Text>
+              </Box>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
         <TouchableOpacity
           style={styles.openModalButton}
           onPress={() => setShowModal(true)}
         >
-          <SearchIcon size="md" color="white" />
+          <MenuIcon size="md" color="white" />
         </TouchableOpacity>
       </View>
     </GluestackUIProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  map: {
-    width: Dimensions.get("window").width,
-    height: Dimensions.get("window").height,
-  },
-  searchContainer: {
-    position: "absolute",
-    width: "90%",
-    backgroundColor: "white",
-    shadowColor: "black",
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
-    padding: 8,
-    borderRadius: 8,
-    top: Constants.statusBarHeight,
-  },
-  input: {
-    borderColor: "#888",
-    borderWidth: 1,
-  },
-  button: {
-    backgroundColor: "#262758",
-    paddingVertical: 12,
-    marginTop: 16,
-    borderRadius: 4,
-  },
-  buttonText: {
-    textAlign: "center",
-    color: "white",
-  },
-  icon: {
-    color: "white",
-  },
-
-  fullPageModalContent: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // Add a transparent background to overlay the map
-  },
-  modalContent: {
-    backgroundColor: "white",
-    padding: 16,
-    borderRadius: 8,
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  // Style for the button to open the modal
-  openModalButton: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    backgroundColor: "#262758",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 4,
-  },
-  openModalButtonText: {
-    color: "white",
-  },
-  // Style for the close button
-  closeButton: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "#ccc",
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeButtonText: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  // Style for the item container in the modal
-  itemContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  // Style for the "View Details" button
-  viewDetailsButton: {
-    backgroundColor: "#262758",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 4,
-  },
-  viewDetailsButtonText: {
-    color: "white",
-    fontSize: 14,
-  },
-  // Style for the item name text
-  itemName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 16,
-    flex: 1,
-  },
-  // Style for the divider
-  // divider: {
-  //   height: 1,
-  //   backgroundColor: "#ccc",
-  // },
-  traceRoute: {
-    
-
-  },
-});
